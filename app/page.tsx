@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, BookOpenText, ChevronRight, FileText, Image as ImageIcon, LockKeyhole, MapPin, Menu, Play, Search, Settings2, UserRound, Video, X } from 'lucide-react';
 
 type Period = '前期' | '中期' | '後期';
@@ -27,7 +27,7 @@ const events:EventItem[] = [
   {year:2024,date:'2024年11月10日',period:'後期',title:'世代をつなぐ対話の庭',place:'新緑記念館',description:'10代から90代までが一堂に集い、それぞれの記憶と未来像を語りました。',people:['会員有志','次世代委員会'],themes:['対話','未来'],photos:87,videos:12,texts:18,image:6},
 ];
 
-type View = {name:'home'} | {name:'timeline';period:Period} | {name:'detail';item:EventItem} | {name:'search'};
+type View = {name:'home'} | {name:'timeline';period:Period;focusYear?:number} | {name:'detail';item:EventItem} | {name:'search'};
 
 function ArchiveImage({index,className='' }:{index:number;className?:string}) { return <div role="img" aria-label="架空の活動記録写真" className={`archive-img crop-${index} ${className}`} />; }
 
@@ -42,22 +42,24 @@ export default function Home(){
       <button className="menu-button" onClick={()=>setMenu(!menu)} aria-label="メニューを開く"><Menu size={26}/></button>
     </header>
     {menu&&<div className="menu-panel"><button className="close" onClick={()=>setMenu(false)}><X/> 閉じる</button><nav><button onClick={()=>go({name:'home'})}>ホーム</button><button onClick={()=>go({name:'timeline',period:'前期'})}>年表を見る</button><button onClick={()=>go({name:'search'})}>資料を探す</button></nav><p>文字サイズ</p><div className="size-switch">{[['standard','標準'],['large','大'],['xlarge','特大']].map(([v,l])=><button className={fontSize===v?'active':''} onClick={()=>setFontSize(v)} key={v}>{l}</button>)}</div><div className="privacy"><LockKeyhole size={18}/><span><strong>このアーカイブは会員限定です</strong><small>掲載資料の外部共有はご遠慮ください</small></span></div></div>}
-    {view.name==='home'&&<HomeView onPeriod={period=>go({name:'timeline',period})} onSearch={()=>go({name:'search'})}/>} 
-    {view.name==='timeline'&&<TimelineView period={view.period} onBack={()=>go({name:'home'})} onPeriod={period=>go({name:'timeline',period})} onDetail={item=>go({name:'detail',item})}/>} 
+    {view.name==='home'&&<HomeView onPeriod={period=>go({name:'timeline',period})} onYear={year=>go({name:'timeline',period:year<=1959?'前期':year<=1999?'中期':'後期',focusYear:year})} onSearch={()=>go({name:'search'})}/>} 
+    {view.name==='timeline'&&<TimelineView period={view.period} focusYear={view.focusYear} onBack={()=>go({name:'home'})} onPeriod={period=>go({name:'timeline',period})} onDetail={item=>go({name:'detail',item})}/>} 
     {view.name==='detail'&&<DetailView item={view.item} onBack={()=>go({name:'timeline',period:view.item.period})}/>} 
     {view.name==='search'&&<SearchView query={query} setQuery={setQuery} results={results} onBack={()=>go({name:'home'})} onDetail={item=>go({name:'detail',item})}/>} 
     <div className="quick-size"><Settings2 size={15}/><span>文字</span>{[['standard','標準'],['large','大'],['xlarge','特大']].map(([v,l])=><button className={fontSize===v?'active':''} onClick={()=>setFontSize(v)} key={v}>{l}</button>)}</div>
   </div>;
 }
 
-function HomeView({onPeriod,onSearch}:{onPeriod:(p:Period)=>void;onSearch:()=>void}){return <main>
+function HomeView({onPeriod,onYear,onSearch}:{onPeriod:(p:Period)=>void;onYear:(year:number)=>void;onSearch:()=>void}){return <main>
   <section className="hero"><p className="eyebrow">OFFICIAL HISTORY ARCHIVE</p><h1>受け継がれてきた<br/>記憶を、未来へ。</h1><p className="lead">1920年から現在まで。写真、映像、ことばとともに、私たちの歩みをたどります。</p><button className="search-entry" onClick={onSearch}><Search/><span>年代・人物・場所・言葉から検索</span><ChevronRight/></button></section>
-  <section className="periods"><div className="section-heading"><div><p className="eyebrow">EXPLORE THE HISTORY</p><h2>時代から見る</h2></div><p className="provisional">区分は仮設定です</p></div><p className="config-note">この3区分と名称・年代は、先方へのヒアリング後に管理画面から変更できます。</p><div className="period-grid">{periods.map(p=><button className="period-card" key={p.label} onClick={()=>onPeriod(p.label)}><span className="period-index">{p.index}</span><span className="period-copy"><strong>{p.label}</strong><small>{p.years}</small><em>{p.note}</em></span><span className="round-arrow"><ChevronRight/></span></button>)}</div></section>
+  <section className="periods"><div className="section-heading"><div><p className="eyebrow">EXPLORE THE HISTORY</p><h2>年代を見る</h2></div></div><div className="history-chooser"><YearWheel onSelect={onYear}/><div className="period-side"><div className="period-side-head"><h3>時代区分から見る</h3><p className="provisional">区分は仮設定です</p></div><p className="config-note">区分名と年代は、ヒアリング後に管理画面から変更できます。</p><div className="period-grid">{periods.map(p=><button className="period-card" key={p.label} onClick={()=>onPeriod(p.label)}><span className="period-index">{p.index}</span><span className="period-copy"><strong>{p.label}</strong><small>{p.years}</small><em>{p.note}</em></span><span className="round-arrow"><ChevronRight/></span></button>)}</div></div></div></section>
   <section className="featured"><ArchiveImage index={6}/><div><p className="eyebrow">FEATURED MEMORY</p><h2>世代をつなぐ、<br/>それぞれの記憶。</h2><p>一つの出来事に、写真・映像・講話・文書をまとめて保存。出来事を入口に、多角的に歴史をたどれます。</p></div></section><Footer/></main>}
 
-function TimelineView({period,onBack,onPeriod,onDetail}:{period:Period;onBack:()=>void;onPeriod:(p:Period)=>void;onDetail:(e:EventItem)=>void}){const current=periods.find(p=>p.label===period)!;const items=events.filter(e=>e.period===period);return <main>
+function YearWheel({onSelect}:{onSelect:(year:number)=>void}){const start=1920,end=new Date().getFullYear(),row=62;const years=useMemo(()=>Array.from({length:end-start+1},(_,i)=>start+i),[end]);const [selected,setSelected]=useState(1965);const wheel=useRef<HTMLDivElement>(null);useEffect(()=>{if(wheel.current)wheel.current.scrollTop=(selected-start)*row},[]);const moveTo=(year:number,behavior:ScrollBehavior='smooth')=>{const next=Math.max(start,Math.min(end,year));setSelected(next);wheel.current?.scrollTo({top:(next-start)*row,behavior})};return <div className="year-wheel-card"><div className="wheel-top"><span>YEAR SELECTOR</span><strong>{start} — {end}</strong></div><p>指で上下に回して年代を選択</p><div className="wheel-shell"><span className="wheel-rail left"/><span className="wheel-rail right"/><div className="wheel-selection" aria-hidden="true"><i/>SELECT YEAR<i/></div><div className="year-wheel" ref={wheel} role="listbox" aria-label="年代を選択" tabIndex={0} onKeyDown={e=>{if(e.key==='ArrowUp'){e.preventDefault();moveTo(selected-1)}if(e.key==='ArrowDown'){e.preventDefault();moveTo(selected+1)}}} onScroll={e=>setSelected(Math.max(start,Math.min(end,start+Math.round(e.currentTarget.scrollTop/row))))}>{years.map(year=><button role="option" aria-selected={year===selected} className={year===selected?'selected':''} onClick={()=>moveTo(year)} key={year}>{year}<small>年</small></button>)}</div></div><div className="wheel-shortcuts"><button onClick={()=>moveTo(start)}>1920年へ</button><span>選択中 <strong>{selected}</strong></span><button onClick={()=>moveTo(end)}>現在へ</button></div><button className="year-confirm" onClick={()=>onSelect(selected)}><span><small>選択した年代へ</small>{selected}年付近の年表を見る</span><ChevronRight/></button></div>}
+
+function TimelineView({period,focusYear,onBack,onPeriod,onDetail}:{period:Period;focusYear?:number;onBack:()=>void;onPeriod:(p:Period)=>void;onDetail:(e:EventItem)=>void}){const current=periods.find(p=>p.label===period)!;const items=events.filter(e=>e.period===period);return <main>
   <div className="page-head"><button className="back" onClick={onBack}><ArrowLeft/> トップへ</button><p className="eyebrow">HISTORY TIMELINE</p><h1>{period}<small>{current.years}</small></h1><p>{current.note}</p><div className="period-tabs">{periods.map(p=><button className={p.label===period?'active':''} onClick={()=>onPeriod(p.label)} key={p.label}>{p.label}</button>)}</div></div>
-  <section className="timeline"><p className="list-count">出来事 {items.length}件　<span>年代順</span></p>{items.map(item=><article className="timeline-item" key={item.year}><div className="year">{item.year}</div><div className="dot"/><button className="event-card" onClick={()=>onDetail(item)}><ArchiveImage index={item.image}/><div className="event-body"><time>{item.date}</time><h2>{item.title}</h2><p className="location"><MapPin/> {item.place}</p><p>{item.description}</p><MediaCounts item={item}/><span className="detail-link">詳しく見る <ChevronRight/></span></div></button></article>)}</section><Footer/></main>}
+  <section className="timeline">{focusYear&&<div className="year-arrival"><span>{focusYear}</span><p><strong>{focusYear}年を選択しました</strong><small>この年代に近い出来事を表示しています</small></p></div>}<p className="list-count">出来事 {items.length}件　<span>年代順</span></p>{items.map(item=><article className="timeline-item" key={item.year}><div className="year">{item.year}</div><div className="dot"/><button className="event-card" onClick={()=>onDetail(item)}><ArchiveImage index={item.image}/><div className="event-body"><time>{item.date}</time><h2>{item.title}</h2><p className="location"><MapPin/> {item.place}</p><p>{item.description}</p><MediaCounts item={item}/><span className="detail-link">詳しく見る <ChevronRight/></span></div></button></article>)}</section><Footer/></main>}
 
 function MediaCounts({item}:{item:EventItem}){return <div className="media-counts"><span><ImageIcon/>写真 {item.photos}</span><span><Video/>映像 {item.videos}</span><span><FileText/>資料 {item.texts}</span></div>}
 
